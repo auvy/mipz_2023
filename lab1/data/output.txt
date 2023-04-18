@@ -5,5 +5,5 @@ France 1325
 Case Number 2
 Luxembourg 0
 Case Number 3
-Netherlands 2
 Belgium 2
+Netherlands 2

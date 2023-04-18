@@ -8,10 +8,6 @@ def app():
   case_list = []
   try:
     case_list = parse_input(input_path)
-    # for c in case_list:
-    #   if not validate_case(c):
-    #     print("Input error. Quitting.")
-    #     return
 
   except Exception as e:
     print(e)
