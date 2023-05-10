@@ -1,62 +1,65 @@
-import re
+def parse_country(line):
+    tokens = line.split()
+
+    if len(tokens) != 5:
+        raise Exception(f"Error: Need 5 arguments for a country: {tokens}")
+
+    country = {
+        "name": tokens[0],
+        "llx" : int(tokens[1]),
+        "lly" : int(tokens[2]),
+        "urx" : int(tokens[3]),
+        "ury" : int(tokens[4])
+    }
+
+    return country
+
 
 def read_lines(filepath):
     with open(filepath, 'r') as file:
         data = file.read()
     return data.split('\n')
 
-def parse_country(line):
-    args = line.split(' ')
-    
-    if len(args) != 5:
-        raise Exception(f"Error: Need 5 arguments for a country: {args}")
-      
-    name_pattern = re.compile("[A-Z][a-z]{1,24}$")
-    if not name_pattern.match(args[0]):
-        raise Exception(f"Error: Invalid country name: '{args[0]}'")
-    
-    country = {
-        "name": args[0],
-        "llx": int(args[1]),
-        "lly": int(args[2]),
-        "urx": int(args[3]),
-        "ury": int(args[4])
-    }
-    return country
 
 def parse_input(input_path):
     lines = read_lines(input_path)
 
-    line_index = 0
-    case = 0
     cases = []
+    current_case = []
 
-    country_amount = 0
-    countries = []
+    countries_n = -1
     
-    while line_index < len(lines):
-        line = lines[line_index]
-        if line.isdigit():
-            # we think it is a case
-            
-            country_amount = int(line)
-            # we trust the input validity
-            
-            if country_amount == 0:
-                # consider 0 an end of cases
-                return cases
-
-            countries = []
-            line_index += 1
-
-            for c in range(country_amount):
-                parsed = parse_country(lines[line_index])
-                countries.append(parsed)
-                line_index += 1
+    for l in lines:
+        tokens = l.strip().split()
                 
-            case += 1
-            cases.append(countries)
-            countries = []
-        else:
-            raise Exception("Use numbers only for cases/amount of countries.")
+        if len(tokens) > 0:
+                
+            # case number line
+            if  len(tokens) < 2 and \
+                tokens[0].isdigit() :
+                    
+                # number of countries
+                countries_n = int(tokens[0])
+                
+                # append accumulated countries in case
+                # and move on
+                if len(current_case) > 0:
+                    cases.append(current_case)
+                    current_case = []
+                
+                # line '0' that ends reading
+                if int(tokens[0]) == 0:
+                    break
+                
+            # country line      
+            elif len(tokens) == 5 and            \
+                 len(current_case) < countries_n :
+                # implicitly ignore country
+                # if case array has enough
+                country = parse_country(l)
+                current_case.append(country)
+            
+            else:
+                continue
+    
     return cases

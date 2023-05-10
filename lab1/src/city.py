@@ -1,5 +1,4 @@
-balance_initial        = 1000000
-day_one_representative = 1000
+from .config import balance_initial
 
 class City:
     def __init__(self, homeland, country_list, x, y):
@@ -7,37 +6,26 @@ class City:
         self.x                 = x
         self.y                 = y
 
-        self.balance           = { city_data["name"]: 0 for city_data in country_list }
+        self.balance     = {}
+        for country in country_list:
+            self.balance[country["name"]]  = 0
         self.balance[homeland] = balance_initial
-        
-        self.received_today    = { city_data["name"]: 0 for city_data in country_list }
-        
+
         self.neighbors         = []
         self.is_complete       = False
+
+
+    def check_completion(self):
+        for amount in self.balance.values():
+            if amount == 0:
+                return False
+        self.is_complete = True
+        return True
+    
+    
+     # map print
+    def __str__(self):
+        return f'{self.homeland[0:4]}({"%2s" % self.x};{"%2s" % self.y})'
         
-    def set_neighbors(self, neighbors):
-        self.neighbors = neighbors
 
-    def add_to_motif(self, motif, amount):
-        self.received_today[motif] += amount
-
-    def diffuse_to_neighbors(self):
-        for motif in self.balance:
-            motif_balance = self.balance[motif]
-            daily_tribute = motif_balance // day_one_representative
-            
-            if daily_tribute > 0:
-                for neighbor in self.neighbors:
-                    self.balance[motif] -= daily_tribute
-                    neighbor.add_to_motif(motif, daily_tribute)
-
-    def today_to_balance(self):
-        for motif in self.received_today:
-            self.balance[motif] += self.received_today[motif]
-            self.received_today[motif] = 0
-
-        if not self.is_complete:
-            for motif in self.received_today:
-                if self.balance[motif] == 0:
-                    return
-            self.is_complete = True
+    

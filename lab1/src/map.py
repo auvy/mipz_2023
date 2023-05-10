@@ -1,99 +1,133 @@
-from .country import Country
-from .city import City
-from .validity import validate_case
+from .country   import Country
+from .city      import City
 
-grid_size = 10
+from .config    import grid_size, representative_portion
 
 class Map:
     def __init__(self, countries_list):
         self.countries = []
-        self.grid      = [ [None] * (grid_size + 2) for i in range((grid_size + 2)) ]
-        
-        validate_case(countries_list, grid_size)
-        
-        self.__grid_init(countries_list)
-        self.__check_neighbors_countries()
+        self.cities    = []
+        self.populate_map(countries_list)
 
-    # class-private
-    def __grid_init(self, countries_list):
-        # go through every country and put it's cities on the grid
+
+    def populate_map(self, countries_list):
         for country_data in countries_list:
-            
-            country = Country(country_data["name"])
-            
-            for x in range(country_data["llx"], country_data["urx"] + 1):
-               # we iterate by columns downwards and right basically. 
-                for y in range(country_data["lly"], country_data["ury"] + 1):
-                    if self.grid[x][y] is not None:
-                        raise Exception(f"{self.grid[x][y].country_name} intersects with {country.name} in [{x}, {y}]")
-                    
-                    # city defines each coin denom
-                    city = City(country.name, countries_list, x, y)
-                    self.grid[x][y] = city
-                    # add this city to country
-                    country.append_city(city)
-            self.countries.append(country)
+            self.create_country(country_data, countries_list)
+        self.grid_determine_neighbors()
 
-        # set neighbors for each city
-        for row in self.grid:
-            for city in row:
-                if city is not None:
-                    neighbors_list = self.__get_neighbors(city.x, city.y)
-                    city.set_neighbors(neighbors_list)
 
-    def diffuse(self):
-        if len(self.countries) == 1:
-            country = self.countries[0]
-            country.toggle_complete()
-            return
+    def create_country(self, country_data, countries_list):
+        country = Country(country_data["name"])
+        
+        bounds_x = [country_data["llx"], country_data["urx"] + 1]
+        bounds_y = [country_data["lly"], country_data["ury"] + 1]
+        
+        for x in range(bounds_x[0], bounds_x[1]):
+            for y in range(bounds_y[0], bounds_y[1]):
+                city = City(country.name, countries_list, x, y)
+                country.cities.append(city)
+                self.cities.append(city)
+                
+        self.countries.append(country)
 
-        full = False
-        day = 1
-        while not full:
-            for x in range(grid_size + 1):
-                for y in range(grid_size + 1):
-                    if self.grid[x][y] is not None:
-                        city = self.grid[x][y]
-                        city.diffuse_to_neighbors()
 
-            for x in range(grid_size + 1):
-                for y in range(grid_size + 1):
-                    if self.grid[x][y] is not None:
-                        city = self.grid[x][y]
-                        city.today_to_balance()
+    def grid_determine_neighbors(self):
+        for city in self.cities:
+            city.neighbors = self.city_determine_neighbors(city.x, city.y)
 
-            full = True
-            for country in self.countries:
-                country.check_completion(day)
-                if country.is_complete is False:
-                    full = False
 
-            # if not full:
-            day += 1
-
-        # self.countries.sort()
-        self.countries.sort(key=lambda x: (x.completion_day, x.name))
-
-    def get_countries(self):
-        return self.countries
-
-    # class-private
-    def __get_neighbors(self, x, y):
+    def city_determine_neighbors(self, x, y):
+        possible_neighbors = [
+            [x, y + 1],
+            [x, y - 1],
+            [x + 1, y],
+            [x - 1, y]
+        ]
         neighbors = []
-        if self.grid[x][y + 1] is not None:
-            neighbors.append(self.grid[x][y + 1])
-        if self.grid[x][y - 1] is not None:
-            neighbors.append(self.grid[x][y - 1])
-        if self.grid[x + 1][y] is not None:
-            neighbors.append(self.grid[x + 1][y])
-        if self.grid[x - 1][y] is not None:
-            neighbors.append(self.grid[x - 1][y])
+        for coords in possible_neighbors:
+            for city in self.cities:
+                if city.x == coords[0] and city.y == coords[1]:
+                    neighbors.append(city)
+        
         return neighbors
 
-    # class-private
-    def __check_neighbors_countries(self):
+
+    def representative_piece(self, money):
+        return money // representative_portion
+
+
+    def diffuse_step(self):
+        # every transaction of the day
+        transfer_amounts = {}
+        for city in self.cities:
+            motifs = {}
+            for motif, amount in city.balance.items():
+                motifs[motif] = self.representative_piece(amount)
+            transfer_amounts[(city.x, city.y)] = motifs
+        
+        # all diffusions per motif
+        motifs = [country.name for country in self.countries]
+        for motif in motifs:
+            for city in self.cities:
+                transfer_amount = transfer_amounts[(city.x, city.y)][motif]
+                
+                for neighbor in city.neighbors:
+                    city.balance[motif]     -= transfer_amount
+                    neighbor.balance[motif] += transfer_amount
+                
+                city.check_completion()
+                    
+    
+    def diffuse(self):
         if len(self.countries) < 2:
-            return
+            country = self.countries[0]
+            country.is_complete = True
+            country.completion_day = 0            
+            return self.countries
+
+        complete = False
+        day      = 1
+        
+        while not complete:
+            self.diffuse_step()
+            complete = self.map_check_complete(day)
+
+            if complete: 
+                break
+            
+            day += 1
+            
+        self.countries.sort(key=lambda country: (country.completion_day, country.name))
+        
+        return self.countries
+
+
+    def map_check_complete(self, day):
+        complete = True
         for country in self.countries:
-            if not country.has_foreign_neighbors():
-                raise Exception(f"{country.name} has no connection with other countries")
+            if not country.check_completion(day):
+                complete = False
+        return complete
+    
+    
+    # map print
+    def __str__(self):
+        import numpy as np
+        grid = np.full((grid_size, grid_size), None)    
+        for city in self.cities:
+            grid[city.x][city.y] = city
+        
+        result = ''
+        rowstr = ''
+            
+        for row in reversed(np.array(grid).T):
+            rowstr = ''
+            for cell in row:
+                if cell is None:
+                    rowstr = rowstr +  " " + '...........'
+                else:
+                    rowstr = rowstr +  " " + str(cell)
+            result = result + rowstr + '\n'
+        result = result[:-1]
+        
+        return result
