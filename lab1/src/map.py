@@ -51,18 +51,13 @@ class Map:
         
         return neighbors
 
-
-    def representative_piece(self, money):
-        return money // representative_portion
-
-
     def diffuse_step(self):
         # every transaction of the day
         transfer_amounts = {}
         for city in self.cities:
             motifs = {}
             for motif, amount in city.balance.items():
-                motifs[motif] = self.representative_piece(amount)
+                motifs[motif] = amount // representative_portion
             transfer_amounts[(city.x, city.y)] = motifs
         
         # all diffusions per motif

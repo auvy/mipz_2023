@@ -65,20 +65,16 @@ def check_adjacency(case):
     lower     = bounds_y[0]
     
     for x in range(leftmost, rightmost + 1):
-    # checking upper line on upper neighbors
-      if (x, upper + 1) in cities:
+      if (x, upper + 1) in cities or (x, lower - 1) in cities:
         neighbors = True
-    # checking lower line on lower neighbors
-      if (x, lower - 1) in cities:
-        neighbors = True
+        break
+    if neighbors:
+      continue
     
     for y in range(lower, upper + 1):
-    # checking left  line on lefter  neighbors
-      if (leftmost - 1, y) in cities:
+      if (leftmost - 1, y) in cities or (rightmost + 1, y) in cities:
         neighbors = True
-    # checking right line on righter neighbors
-      if (rightmost + 1, y) in cities:
-        neighbors = True
+        break
     
     if not neighbors:
       raise Exception(f'Error: Adjacency: {country["name"]} is isolated, check coordinates')
